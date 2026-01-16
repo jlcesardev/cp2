@@ -71,10 +71,9 @@ pipeline {
     
                set PYTHONPATH=%WORKSPACE%
                coverage run --branch --source=app --omit=app\\_init_.py,app\\api.py -m pytest test\\unit
-                         
+               coverage xml
+               
         '''
-			cobertura coberturaReportFile: 'coverage.xml'
-
             }
         }
         // pruebas de rendimeniento
@@ -94,14 +93,12 @@ pipeline {
 			bat '''
 				bandit --exit-zero -r . -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}]{msg}"
 			'''
-			recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')]
-
 			//recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], qualityGates: [[thresshold: 1, type: 'TOTAL', unstable: true],[thresshold:2, type: 'TOTAL', unstable:false]]
 		} 
  }		
 	
  
-         stage('Static Analysis') {
+         stage('Static Analysis - Flake8') {
              steps {
                     bat '''
                    python -m flake8 app --output-file=flake8.txt || exit 0
@@ -120,10 +117,3 @@ pipeline {
 
     }
 }
-
-
-
-
-
-
-
