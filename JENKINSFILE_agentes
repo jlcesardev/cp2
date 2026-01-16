@@ -71,10 +71,10 @@ pipeline {
     
                set PYTHONPATH=%WORKSPACE%
                coverage run --branch --source=app --omit=app\\_init_.py,app\\api.py -m pytest test\\unit
-               cobertura coberturaReportFile: 'coverage.xml'
-
-               
+                         
         '''
+			cobertura coberturaReportFile: 'coverage.xml'
+
             }
         }
         // pruebas de rendimeniento
@@ -120,6 +120,7 @@ pipeline {
 
     }
 }
+
 
 
 
