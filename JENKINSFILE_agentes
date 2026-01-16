@@ -74,6 +74,9 @@ pipeline {
                coverage xml
                
         '''
+			coberturaReportFile: 'coverage.xml'
+
+
             }
         }
         // pruebas de rendimeniento
@@ -117,3 +120,4 @@ pipeline {
 
     }
 }
+
