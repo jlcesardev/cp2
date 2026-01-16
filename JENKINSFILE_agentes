@@ -98,7 +98,7 @@ pipeline {
  }		
 	
  
-         stage('Static Analysis - Flake8') {
+         stage('Static Analysis') {
              steps {
                     bat '''
                    python -m flake8 app --output-file=flake8.txt || exit 0
@@ -117,3 +117,4 @@ pipeline {
 
     }
 }
+
