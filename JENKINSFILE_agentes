@@ -64,7 +64,7 @@ pipeline {
             
             }
         }
-        
+      // pruebas de cobertura  
       stage('Coverage') {
             steps {
               bat '''
@@ -74,10 +74,9 @@ pipeline {
                coverage xml
                
         '''
+			// publicación del reporte 
 	        publishCoverage adapters: [coberturaAdapter('coverage.xml')]
-            //cobertura coberturaReportFile: 'coverage.xml'
-
-
+           
             }
         }
         // pruebas de rendimeniento
@@ -121,3 +120,4 @@ pipeline {
 
     }
 }
+
