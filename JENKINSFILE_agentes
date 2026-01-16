@@ -101,7 +101,7 @@ pipeline {
          stage('Static Analysis') {
              steps {
                     bat '''
-                   python -m flake8 app --output-file=flake8.txt || exit 0
+                   python -m flake8 app --output-file=flake8.txt 
                     '''
                  recordIssues tools: [flake8(pattern: 'flake8.txt')]
                 }
@@ -117,4 +117,5 @@ pipeline {
 
     }
 }
+
 
