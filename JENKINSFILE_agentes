@@ -17,7 +17,7 @@ pipeline {
       stage('Tests') {
             	// 2º Vamos a paralelizar las pruebas unitarias y rest
 				parallel {
-				// 3º Pruebas unitarias con agente1
+				// 3º Pruebas unitarias con agente1 - *** ¡¡¡ Solo se puede ejecutar una vez!!! ****
                 stage('Unit') {
                     agent { label 'agent1' }
                     steps {
@@ -52,11 +52,8 @@ pipeline {
                     }
                 }
 
-
-
-
             }
-        }
+          }
 			// 5º Pruebas estáticas con Flake8
 			stage('Static Analysis') {
              steps {
@@ -65,7 +62,7 @@ pipeline {
                     '''
                  recordIssues tools: [flake8(pattern: 'flake8.txt')]
                 }
-        }
+             }
 
 			// 6º Pruebas de seguridad con Bandit
 			stage ('Security'){
@@ -77,31 +74,32 @@ pipeline {
 			} 
 		 }		
 
-      // 7º Pruebas de rendimeniento con Jmeter
+      // 7º Pruebas de rendimeniento con Jmeter -- /B background en segundo plano para que el pipeline no se quede bloqueado
      	  stage ('Performance'){
 			steps{
 			bat '''
 				set FLASK_APP=app\\api.py
-                start /B flask run
+				start /B flask run
 				ping -n 4 127.0.0.1
 				C:\\unir\\apache-jmeter-5.6.3\\bin\\jmeter -n -t test\\jmeter\\flask.jmx -l flask.jtl
 			'''
+			// Reporte en fichero *.jtl
 			perfReport sourceDataFiles: 'flask.jtl'
-		} 
- }
+	    	} 
+         }
 		 // 8º Pruebas de cobertura 
-      		stage('Coverage') {
-            bat '''
+        	stage('Coverage') {
+            steps {
+              bat '''
                set PYTHONPATH=%WORKSPACE%
+               
                coverage xml
                 '''
 			// publicación del reporte 
 			 
 	        publishCoverage adapters: [coberturaAdapter('coverage.xml')]
+           
+            }
         }
-  
-          }
+    }
 }
-
-
-
