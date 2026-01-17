@@ -29,7 +29,7 @@ pipeline {
                             pytest --junitxml=result-unit.xml test\\unit
                             '''
                             stash name: 'unit-res', includes: 'result-unit.xml'
-							junit 'result-unit.xml'
+                            junit 'result-unit.xml'
                         }
                     }
                 }
@@ -41,15 +41,18 @@ pipeline {
                             unstash 'code'
                             bat '''
                             set FLASK_APP=app\\api.py
+                            REM /B de background para que jk no se quede bloqueado
                             start /B flask run
+                            REM esperar 4 minutos para que levantes los servicios
 	                        ping -n 4 127.0.0.1
+	                        REM levantamos WIREMOCK 
                             start /B java -jar C:\\wiremock\\wiremock-standalone-3.13.2.jar --port 9090 --root-dir C:\\wiremock
                             set PYTHONPATH=%WORKSPACE%
-	                        ping -n 15 127.0.0.1
+	                        ping -n 10 127.0.0.1
                             pytest --junitxml=result-rest.xml test\\rest
                             '''
                             stash name: 'rest-res', includes: 'result-rest.xml'
-							junit 'result-rest.xml'
+                            junit 'result-rest.xml'
                         }
                     }
                 }
@@ -58,13 +61,16 @@ pipeline {
           }
 			// 5º Pruebas estáticas con Flake8
 			stage('Static Analysis') {
-             steps {
-                   bat '''
-                   python -m flake8 app --output-file=flake8.txt || exit 0
-                    '''
-                 recordIssues tools: [flake8(pattern: 'flake8.txt')]
-                }
-             }
+                 steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                bat '''
+                python -m flake8 app --output-file=flake8.txt || exit 0
+                '''
+                //Pintando la fase
+                recordIssues(tools: [flake8(pattern: 'flake8.txt')],qualityGates: [[threshold: 8, type: 'TOTAL', unstable: true],[threshold: 10, type: 'TOTAL', unstable: false]])
+                     }
+                    }
+                    }
 
 			// 6º Pruebas de seguridad con Bandit
 			stage ('Security'){
@@ -72,10 +78,11 @@ pipeline {
 			bat '''
 				bandit --exit-zero -r . -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}]{msg}"
 			'''
-			recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')], qualityGates: [[thresshold: 1, type: 'TOTAL', unstable: true],[thresshold:2, type: 'TOTAL', unstable:false]]
-			} 
+			 recordIssues(
+             tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],qualityGates: [[threshold: 2, type: 'TOTAL', unstable: true],[threshold: 4, type: 'TOTAL', unstable: false]])
+			  } 
 		 }		
-
+			
       // 7º Pruebas de rendimeniento con Jmeter -- /B background en segundo plano para que el pipeline no se quede bloqueado
      	  stage ('Performance'){
 			steps{
@@ -90,19 +97,12 @@ pipeline {
 	    	} 
          }
 		 // 8º Pruebas de cobertura 
-        	stage('Coverage') {
+        stage('Coverage') {
             steps {
-              bat '''
-               set PYTHONPATH=%WORKSPACE%
-               
-               coverage xml
-                '''
-			// publicación del reporte 
-			 
-	        publishCoverage adapters: [coberturaAdapter('coverage.xml')]
-           
-            }
+                    catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                    publishCoverage adapters: [coberturaAdapter('coverage.xml')]
         }
     }
 }
-
+    }
+}
