@@ -29,6 +29,7 @@ pipeline {
                             pytest --junitxml=result-unit.xml test\\unit
                             '''
                             stash name: 'unit-res', includes: 'result-unit.xml'
+							junit 'result-unit.xml'
                         }
                     }
                 }
@@ -48,6 +49,7 @@ pipeline {
                             pytest --junitxml=result-rest.xml test\\rest
                             '''
                             stash name: 'rest-res', includes: 'result-rest.xml'
+							junit 'result-rest.xml'
                         }
                     }
                 }
@@ -103,3 +105,4 @@ pipeline {
         }
     }
 }
+
