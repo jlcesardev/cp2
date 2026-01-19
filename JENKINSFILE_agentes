@@ -3,76 +3,103 @@ pipeline {
 
     options { skipDefaultCheckout() }
 
-     stages {
+    stages {
+		// 1º Descargando el repositorio de GitHub
         stage('Get Code') {
             steps {
-                // Obtener código del repo
-                git 'https://github.com/anieto-unir/helloworld.git'
-	            echo WORKSPACE
+                git 'https://github.com/jlcesardev/cp2.git'
+                echo "WORKSPACE: ${env.WORKSPACE}"
                 bat 'dir'
-                stash name:'code', includes:'**'
+                stash name: 'code', includes: '**'
             }
         }
-    
-        stage('Build') {
-           steps {
-              echo 'Eyyy, esto es Python. No hay que compilar nada!!!'
-           }
-        }
-        
-        stage('Tests')
-        {
-            parallel
-            {
+
+      stage('Tests') {
+            	// 2º Vamos a paralelizar las pruebas unitarias y rest
+				parallel {
+				// 3º Pruebas unitarias con agente1 - *** ¡¡¡ Solo se puede ejecutar una vez!!! ****
                 stage('Unit') {
-                    agent {label 'agent1'}
+                    agent { label 'agent1' }
                     steps {
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            unstash name:'code'
-                            sh '''
-                                ls -la
-                                export PYTHONPATH=${WORKSPACE}
-                                /home/agent1/.local/bin/pytest --junitxml=result-unit.xml test/unit
+                            unstash 'code'
+                            bat '''
+                            dir
+                            set PYTHONPATH=%WORKSPACE%
+                            pytest --junitxml=result-unit.xml test\\unit
                             '''
-                            stash name:'unit-res', includes:'result-unit.xml'
-                       }
+                            stash name: 'unit-res', includes: 'result-unit.xml'
+                            junit 'result-unit.xml'
+                        }
                     }
-                }   
-                
-                
+                }
+				// 4º Pruebas Rest con agente2
                 stage('Rest') {
-                    agent {label 'agent2'}
+                    agent { label 'agent2' }
                     steps {
-                      catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                        unstash name:'code'
-                        sh '''
-                            export FLASK_APP=app/api.py                          
-                            /home/agent2/.local/bin/flask run &
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            unstash 'code'
+                            bat '''
+                            set FLASK_APP=app\\api.py
+                            start /B flask run
+	                        ping -n 4 127.0.0.1
+                            start /B java -jar C:\\wiremock\\wiremock-standalone-3.13.2.jar --port 9090 --root-dir C:\\wiremock
+                            set PYTHONPATH=%WORKSPACE%
+	                        ping -n 15 127.0.0.1
+                            pytest --junitxml=result-rest.xml test\\rest
+                            '''
+                            stash name: 'rest-res', includes: 'result-rest.xml'
+                            junit 'result-rest.xml'
+                        }
+                    }
+                }
 
-                            sleep 4
-
-                            java -jar /home/agent2/wiremock/wiremock-standalone-3.3.1.jar --port 9090 --root-dir /home/agent2/wiremock &
-                            export PYTHONPATH=${WORKSPACE}
-                            
-                            sleep 15
-                            
-                            /home/agent2/.local/bin/pytest --junitxml=result-rest.xml test/rest
-                        '''
-                      }
-                      stash name:'rest-res', includes:'result-rest.xml'
-                    }    
-                }                
-                
             }
-        }
+          }
+			// 5º Pruebas estáticas con Flake8
+			stage('Static Analysis') {
+                 steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                bat '''
+                python -m flake8 app --output-file=flake8.txt || exit 0
+                '''
+                //Pintando la fase
+                recordIssues(tools: [flake8(pattern: 'flake8.txt')],qualityGates: [[threshold: 8, type: 'TOTAL', unstable: true],[threshold: 10, type: 'TOTAL', unstable: false]])
+                     }
+                    }
+                    }
 
-        stage('Results') {
+			// 6º Pruebas de seguridad con Bandit
+			stage ('Security'){
+			steps{
+			bat '''
+				bandit --exit-zero -r . -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}]{msg}"
+			'''
+			 recordIssues(tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],qualityGates: [[threshold: 2, type: 'TOTAL', unstable: true],[threshold: 4, type: 'TOTAL', unstable: false]])
+			  } 
+		 }		
+			
+
+      // 7º Pruebas de rendimeniento con Jmeter -- /B background en segundo plano para que el pipeline no se quede bloqueado
+     	  stage ('Performance'){
+			steps{
+			bat '''
+				set FLASK_APP=app\\api.py
+				start /B flask run
+				ping -n 4 127.0.0.1
+				C:\\unir\\apache-jmeter-5.6.3\\bin\\jmeter -n -t test\\jmeter\\flask.jmx -l flask.jtl
+			'''
+			// Reporte en fichero *.jtl
+			perfReport sourceDataFiles: 'flask.jtl'
+	    	} 
+         }
+		 // 8º Pruebas de cobertura 
+        stage('Coverage') {
             steps {
-                unstash name:'unit-res'
-                unstash name:'rest-res'
-                junit 'result*.xml' 
-            }
+                    catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                    publishCoverage adapters: [coberturaAdapter('coverage.xml')]
         }
-     
+    }
+}
     }
 }
