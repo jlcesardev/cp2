@@ -35,7 +35,12 @@ class TestUtil(unittest.TestCase):
 
     def test_convert_string_float_with_spaces(self):
         self.assertEqual(4.5, util.convert_to_number(" 4.5 "))
+    
+    def test_convert_to_number_unreachable_exception_branch(self):
+        # Forzamos un tipo que rompa la conversión interna
+        self.assertRaises(TypeError, util.convert_to_number, [])
 
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
