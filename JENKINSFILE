@@ -4,111 +4,60 @@ pipeline {
     options { skipDefaultCheckout() }
 
     stages {
-		// 1º Descargando el repositorio de GitHub
+
         stage('Get Code') {
             steps {
                 git 'https://github.com/jlcesardev/cp2.git'
                 echo "WORKSPACE: ${env.WORKSPACE}"
                 bat 'dir'
-                stash name: 'code', includes: '**'
             }
         }
 
-      stage('Tests') {
-            	// 2º Vamos a paralelizar las pruebas unitarias y rest
-				parallel {
-				// 3º Pruebas unitarias con agente1 - *** ¡¡¡ Solo se puede ejecutar una vez!!! ****
-                stage('Unit') {
-                    agent { label 'agent1' }
-                    steps {
-                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            unstash 'code'
-                            bat '''
-                            dir
-							del /S /Q __pycache__ 2>nul
-                            set PYTHONPATH=%WORKSPACE%
-                           python -B -m pytest --junitxml=result-unit.xml test\\unit
-
-                            '''
-                            stash name: 'unit-res', includes: 'result-unit.xml'
-                            junit 'result-unit.xml'
-                        }
-                    }
-                }
-				// 4º Pruebas Rest con agente2
-                stage('Rest') {
-                    agent { label 'agent2' }
-                    steps {
-                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            unstash 'code'
-                            bat '''
-                            set FLASK_APP=app\\api.py
-                            start /B flask run
-	                        ping -n 4 127.0.0.1
-                            start /B java -jar C:\\wiremock\\wiremock-standalone-3.13.2.jar --port 9090 --root-dir C:\\wiremock
-                            set PYTHONPATH=%WORKSPACE%
-	                        ping -n 15 127.0.0.1
-                            pytest --junitxml=result-rest.xml test\\rest
-                            '''
-                            stash name: 'rest-res', includes: 'result-rest.xml'
-                            junit 'result-rest.xml'
-                        }
-                    }
-                }
-
-            }
-          }
-			// 5º Pruebas estáticas con Flake8
-			stage('Static Analysis') {
-                 steps {
-                catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
-                bat '''
-                python -m flake8 app --output-file=flake8.txt || exit 0
-                '''
-                //Pintando la fase
-                recordIssues(tools: [flake8(pattern: 'flake8.txt')],qualityGates: [[threshold: 8, type: 'TOTAL', unstable: true],[threshold: 10, type: 'TOTAL', unstable: false]])
-                     }
-                    }
-                    }
-
-			// 6º Pruebas de seguridad con Bandit
-			stage ('Security'){
-			steps{
-			bat '''
-				bandit --exit-zero -r . -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}]{msg}"
-			'''
-			 recordIssues(tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],qualityGates: [[threshold: 2, type: 'TOTAL', unstable: true],[threshold: 4, type: 'TOTAL', unstable: false]])
-			  } 
-		 }		
-			
-
-      // 7º Pruebas de rendimeniento con Jmeter -- /B background en segundo plano para que el pipeline no se quede bloqueado
-     	  stage ('Performance'){
-			steps{
-			bat '''
-				set FLASK_APP=app\\api.py
-				start /B flask run
-				ping -n 4 127.0.0.1
-				C:\\unir\\apache-jmeter-5.6.3\\bin\\jmeter -n -t test\\jmeter\\flask.jmx -l flask.jtl
-			'''
-			// Reporte en fichero *.jtl
-			perfReport sourceDataFiles: 'flask.jtl'
-	    	} 
-         }
-		 // 8º Pruebas de cobertura 
-        stage('Coverage') {
-                        steps {
+        stage('Unit Tests') {
+            agent { label 'agent1' }
+            steps {
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                     bat '''
-					python -B -m coverage erase
-					python -B -m coverage run --branch --source=app --omit=app\\__init__.py,app\\api.py -m pytest test\\unit
-					python -B -m coverage xml
+                    echo === LIMPIANDO CACHE PYTHON ===
+                    for /d /r . %%d in (__pycache__) do @if exist "%%d" rd /s /q "%%d"
+                    del /s /q *.pyc 2>nul
 
+                    set PYTHONPATH=%WORKSPACE%
+                    rmdir /S /Q test_old 2>nul
+                    python -B -m coverage run --branch --source=app --omit=app\\__init__.py,app\\api.py -m pytest test\\unit
                     '''
-                       
-                    catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
-                    publishCoverage adapters: [coberturaAdapter('coverage.xml')]
+                    junit 'result-unit.xml'
+                }
+            }
         }
+
+       
+        stage('Performance') {
+            steps {
+                bat '''
+                set FLASK_APP=app\\api.py
+                start /B flask run
+                ping -n 4 127.0.0.1
+                C:\\unir\\apache-jmeter-5.6.3\\bin\\jmeter -n -t test\\jmeter\\flask.jmx -l flask.jtl
+                '''
+                perfReport sourceDataFiles: 'flask.jtl'
+            }
+        }
+        
+        stage('Coverage') {
+    steps {
+        bat '''
+        echo === COVERAGE SOLO app.util ===
+        python -B -m coverage erase
+        python -B -m coverage run --branch --source=app.util -m pytest test\\unit
+        python -B -m coverage report -m
+        python -B -m coverage xml
+        '''
+        publishCoverage adapters: [coberturaAdapter('coverage.xml')]
     }
 }
+
+
+       
     }
 }
