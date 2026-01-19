@@ -1,61 +1,85 @@
 pipeline {
     agent any
 
+    options { skipDefaultCheckout() }
+    //Descargamos el código del repositorio
      stages {
         stage('Get Code') {
             steps {
-                // Obtener código del repo
-                git 'https://github.com/anieto-unir/helloworld.git'
-                bat 'dir'
-                echo WORKSPACE
+                git 'https://github.com/jlcesardev/cp2.git'
+	            echo WORKSPACE
+                bat '''dir
+             	hostname
+             	whoami'''
+                stash name:'code', includes:'**'
             }
         }
     
         stage('Build') {
            steps {
-              echo 'Eyyy, esto es Python. No hay que compilar nada!!!'
+            echo 'Eyyy, esto es Python. No hay que compilar nada!!!'
+		    echo WORKSPACE
+            bat '''
+            hostname
+			whoami'''
            }
         }
-        
+        // Pruebas unitarias y rest
         stage('Tests')
         {
-            parallel
+            parallel //Paralelizamos
             {
-
+                //Pruebas unitarias
                 stage('Unit') {
-                            steps {
-                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                                    bat '''
-                                        set PYTHONPATH=.
-                                        pytest --junitxml=result-unit.xml test\\unit
-                                    '''
-                                }
-                            }
-                }
-                
-                        
-                stage('Rest') {
+                    agent {label 'agent1'}
                     steps {
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            echo WORKSPACE
+                            unstash name:'code'
                             bat '''
-                                set FLASK_APP=app\\api.py
-                                start flask run
-                                start java -jar C:\\UNIR\\Ejercicios\\wiremock-jre8-standalone-2.28.0.jar --port 9090 --root-dir test\\wiremock
-                                
-                                ping -n 10 127.0.0.1
-                                
-                                pytest --junitxml=result-rest.xml test\\rest
-                            '''
-                        }
+						    hostname
+						    whoami
+						    set PYTHONPATH=%WORKSPACE%
+                            pytest --junitxml=result-unit.xml test\\unit
+						    '''
+                            stash name:'unit-res', includes:'result-unit.xml'
+                       }
                     }
-                }        
+                }   
+                
+                // Pruebas Rest
+                stage('Rest') {
+                    agent {label 'agent2'}
+                    steps {
+                      catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        echo WORKSPACE
+                        unstash name:'code'
+                        bat '''
+						hostname
+						whoami
+						set FLASK_APP=app\\api.py
+						start flask run
+	
+						start java -jar C:\\wiremock\\wiremock-standalone-3.13.2.jar --port 9090 --root-dir test\\wiremock
+	
+						set PYTHONPATH=%WORKSPACE%
+						pytest --junitxml=result-rest.xml test\\rest
+						'''
+                      }
+                        stash name:'rest-res', includes:'result-rest.xml'
+                    }    
+                }                
+                
             }
         }
-        
-        stage ('Results') {
+
+        stage('Results') {
             steps {
-                junit 'result*.xml'
+                unstash name:'unit-res'
+                unstash name:'rest-res'
+                junit 'result*.xml' 
             }
-        }        
-     }
+        }
+     
+    }
 }
