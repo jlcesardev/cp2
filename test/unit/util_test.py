@@ -1,3 +1,6 @@
+import app.util
+print("UTIL FILE:", app.util.__file__)
+
 import unittest
 import pytest
 
@@ -48,5 +51,6 @@ class TestUtil(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
 
 
