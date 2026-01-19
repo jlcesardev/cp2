@@ -25,6 +25,7 @@ pipeline {
                             unstash 'code'
                             bat '''
                             dir
+							del /S /Q __pycache__ 2>nul
                             set PYTHONPATH=%WORKSPACE%
                             pytest --junitxml=result-unit.xml test\\unit
                             '''
