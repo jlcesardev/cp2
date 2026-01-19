@@ -98,8 +98,9 @@ pipeline {
         stage('Coverage') {
                         steps {
                     bat '''
-                   coverage run --branch --source=app --omit=app\\__init__.py,app\\api.py -m pytest test\\unit
-                   coverage xml
+					coverage erase
+                   	coverage run --branch --source=app --omit=app\\__init__.py,app\\api.py -m pytest test\\unit
+                   	coverage xml
                     '''
                        
                     catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
