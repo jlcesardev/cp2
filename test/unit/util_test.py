@@ -26,13 +26,10 @@ class TestUtil(unittest.TestCase):
 
     def test_convert_string_float_with_trailing_dot(self):
         self.assertEqual(4.0, util.convert_to_number("4."))
-
     def test_convert_string_float_without_leading_zero(self):
         self.assertEqual(0.5, util.convert_to_number(".5"))
-
     def test_convert_string_with_spaces(self):
         self.assertEqual(4, util.convert_to_number(" 4 "))
-
     def test_convert_string_float_with_spaces(self):
         self.assertEqual(4.5, util.convert_to_number(" 4.5 "))
 
