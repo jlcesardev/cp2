@@ -27,7 +27,8 @@ pipeline {
                             dir
 							del /S /Q __pycache__ 2>nul
                             set PYTHONPATH=%WORKSPACE%
-                            pytest --junitxml=result-unit.xml test\\unit
+                           python -B -m pytest --junitxml=result-unit.xml test\unit
+
                             '''
                             stash name: 'unit-res', includes: 'result-unit.xml'
                             junit 'result-unit.xml'
@@ -98,9 +99,10 @@ pipeline {
         stage('Coverage') {
                         steps {
                     bat '''
-					coverage erase
-                   	coverage run --branch --source=app --omit=app\\__init__.py,app\\api.py -m pytest test\\unit
-                   	coverage xml
+					python -B -m coverage erase
+					python -B -m coverage run --branch --source=app --omit=app\__init__.py,app\api.py -m pytest test\unit
+					python -B -m coverage xml
+
                     '''
                        
                     catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
