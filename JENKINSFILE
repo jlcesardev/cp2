@@ -100,7 +100,7 @@ pipeline {
                         steps {
                     bat '''
 					python -B -m coverage erase
-					python -B -m coverage run --branch --source=app --omit=app\__init__.py,app\api.py -m pytest test\unit
+					python -B -m coverage run --branch --source=app --omit=app\\__init__.py,app\\api.py -m pytest test\\unit
 					python -B -m coverage xml
 
                     '''
