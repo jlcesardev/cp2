@@ -27,7 +27,7 @@ pipeline {
                             dir
 							del /S /Q __pycache__ 2>nul
                             set PYTHONPATH=%WORKSPACE%
-                           python -B -m pytest --junitxml=result-unit.xml test\unit
+                           python -B -m pytest --junitxml=result-unit.xml test\\unit
 
                             '''
                             stash name: 'unit-res', includes: 'result-unit.xml'
