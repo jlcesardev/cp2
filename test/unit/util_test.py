@@ -27,6 +27,17 @@ class TestUtil(unittest.TestCase):
         self.assertRaises(TypeError, util.convert_to_number, None)
         self.assertRaises(TypeError, util.convert_to_number, object())
 
+    def test_convert_to_number_float_value_error(self):
+    # "." está presente pero float falla
+    self.assertRaises(TypeError, util.convert_to_number, "3.3.3")
+
+
+def test_convert_to_number_non_iterable(self):
+    # "." in operand lanza TypeError antes de entrar al try lógico
+    self.assertRaises(TypeError, util.convert_to_number, None)
+    self.assertRaises(TypeError, util.convert_to_number, object())
+
+
     def test_convert_string_float_with_trailing_dot(self):
         self.assertEqual(4.0, util.convert_to_number("4."))
 
@@ -51,6 +62,7 @@ class TestUtil(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
 
 
 
